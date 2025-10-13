@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concert Ticket Purchase</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better readability and a clean look */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container {
+            max-width: 600px;
+        }
+        /* Style for the message area */
+        #message {
+            min-height: 2.5rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="container w-full bg-white rounded-xl shadow-2xl p-6 md:p-10">
+        <h1 class="text-3xl font-extrabold text-center text-indigo-700 mb-6">Secure Your Tickets</h1>
+        <p class="text-center text-gray-600 mb-8">Purchase your tickets below using M-Pesa STK Push. Your tickets will be delivered via email upon successful payment.</p>
+        
+        <form id="paymentForm" class="space-y-4">
+
+            <div class="mb-6">
+                <label for="ticketType" class="block text-sm font-medium text-gray-700 mb-1">Select Ticket Category:</label>
+                <select id="ticketType" name="ticketType" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out bg-gray-50">
+                    <option value="">Choose a category...</option>
+                    <optgroup label="Individual Tickets (KES per person, select quantity)">
+                        <option value="Regular" data-price="1000">Regular - KES 1,000</option>
+                        <option value="Children" data-price="300">Children - KES 300</option>
+                        <option value="VIP" data-price="2000">VIP - KES 2,000</option>
+                        <option value="VVIP" data-price="3000">VVIP - KES 3,000</option>
+                        <option value="Executive" data-price="5000">Executive - KES 5,000</option>
+                    </optgroup>
+                    <optgroup label="Family Packages (Fixed Price)">
+                        <option value="Family4" data-price="20000">Family 4 People - KES 20,000</option>
+                        <option value="Family6" data-price="25000">Family 6 People - KES 25,000</option>
+                    </optgroup>
+                    <optgroup label="Corporate Tables (Fixed Price)">
+                        <option value="Corp6" data-price="50000">Corporate 6 People - KES 50,000</option>
+                        <option value="Corp8" data-price="60000">Corporate 8 People - KES 60,000</option>
+                        <option value="Corp12" data-price="100000">Corporate 12 People - KES 100,000</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <div class="mb-6">
+                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity (for Individual Tickets only):</label>
+                <input type="number" id="quantity" name="quantity" min="1" value="1" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
+            </div>
+
+            <div class="mb-6">
+                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">M-Pesa Phone Number (2547xxxxxxxx):</label>
+                <input type="text" id="phone" name="phone" required pattern="2547\d{8}" title="Format: 2547xxxxxxxx" placeholder="e.g., 254712345678" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
+            </div>
+
+            <div class="mb-6">
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address (for ticket delivery):</label>
+                <input type="email" id="email" name="email" required placeholder="name@example.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
+            </div>
+
+            <div class="mb-6">
+                <label for="accountReference" class="block text-sm font-medium text-gray-700 mb-1">Reference (e.g., Your Name or Group):</label>
+                <input type="text" id="accountReference" name="accountReference" placeholder="Optional" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
+            </div>
+
+            <div class="text-center py-4 border-t border-gray-200">
+                <p class="text-xl font-bold text-gray-800">Total Amount: <span id="totalAmount" class="text-indigo-600">0</span> KES</p>
+            </div>
+
+            <button type="submit" id="payButton" class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-200 ease-in-out disabled:opacity-50">
+                <span id="buttonText">Pay with M-Pesa</span>
+            </button>
+        </form>
+
+        <div id="message" class="mt-4 text-center p-3 rounded-lg font-medium">
+            <!-- Payment status messages will appear here -->
+        </div>
+
+        <div class="mt-8 text-center text-sm text-gray-500">
+            &copy; 2025. All rights reserved.
+        </div>
+    </div>
+
+    <script>
+        const ticketConfigPrices = {
+            Regular: 1000, Children: 300, VIP: 2000, VVIP: 3000, Executive: 5000,
+            Family4: 20000, Family6: 25000, Corp6: 50000, Corp8: 60000, Corp12: 100000
+        };
+
+        const form = document.getElementById('paymentForm');
+        const ticketTypeSelect = document.getElementById('ticketType');
+        const quantityInput = document.getElementById('quantity');
+        const totalAmountSpan = document.getElementById('totalAmount');
+        const messageDiv = document.getElementById('message');
+        const payButton = document.getElementById('payButton');
+        const buttonText = document.getElementById('buttonText');
+
+        function updateAmount() {
+            const type = ticketTypeSelect.value;
+            const qty = parseInt(quantityInput.value) || 1;
+            let basePrice = ticketConfigPrices[type] || 0;
+            let totalAmount = 0;
+
+            // Group tickets (Family/Corporate) are fixed price, quantity is ignored
+            if (type.startsWith('Family') || type.startsWith('Corp')) {
+                quantityInput.setAttribute('disabled', 'disabled');
+                totalAmount = basePrice;
+            } else {
+                quantityInput.removeAttribute('disabled');
+                totalAmount = basePrice * qty;
+            }
+
+            totalAmountSpan.innerText = totalAmount.toLocaleString();
+        }
+
+        async function submitPayment(event) {
+            event.preventDefault();
+            
+            // Basic validation
+            if (!ticketTypeSelect.value) {
+                setMessage('Please select a ticket category.', 'bg-red-100 text-red-700');
+                return;
+            }
+
+            // Lock form during submission
+            payButton.setAttribute('disabled', 'disabled');
+            buttonText.innerText = 'Processing...';
+            setMessage('Sending payment request to your phone...', 'bg-yellow-100 text-yellow-700');
+
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Fix quantity if it was disabled (set back to 1 for fixed price packages)
+            if (ticketTypeSelect.value.startsWith('Family') || ticketTypeSelect.value.startsWith('Corp')) {
+                 data.quantity = 1;
+            }
+
+            try {
+                const response = await fetch('/api/stkpush', { // New, correct API endpoint
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.text();
+
+                if (response.ok) {
+                    setMessage(result, 'bg-green-100 text-green-700');
+                } else {
+                    // Handle non-200 responses (e.g., 400 invalid ticket type, 500 API failure)
+                    setMessage(`Error: ${result}`, 'bg-red-100 text-red-700');
+                }
+
+            } catch (error) {
+                console.error('Fetch error:', error);
+                setMessage('Network error or server connection failed.', 'bg-red-100 text-red-700');
+            } finally {
+                // Unlock form
+                payButton.removeAttribute('disabled');
+                buttonText.innerText = 'Pay with M-Pesa';
+            }
+        }
+
+        function setMessage(text, classes) {
+            messageDiv.className = `mt-4 text-center p-3 rounded-lg font-medium ${classes}`;
+            messageDiv.innerText = text;
+        }
+
+        // Attach event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAmount(); // Initial calculation
+            ticketTypeSelect.addEventListener('change', updateAmount);
+            quantityInput.addEventListener('input', updateAmount);
+            form.addEventListener('submit', submitPayment);
+        });
+    </script>
+</body>
+</html>

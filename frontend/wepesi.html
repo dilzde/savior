@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wepesi Admin Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+        .tab-button.active {
+            border-color: #4f46e5;
+            color: #4f46e5;
+            background-color: #eef2ff;
+        }
+        .container { max-width: 1200px; }
+        .table-responsive { overflow-x: auto; }
+        th, td { white-space: nowrap; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="container mx-auto">
+        <header class="bg-white rounded-xl shadow-lg p-6 mb-8 flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-3xl font-bold text-indigo-700">Wepesi Admin Dashboard</h1>
+            <a href="/" class="text-indigo-500 hover:text-indigo-700 text-sm mt-2 md:mt-0">← Back to Ticket Page</a>
+        </header>
+
+        <!-- Tabs for Navigation -->
+        <div class="flex border-b border-gray-200 mb-6 bg-white p-2 rounded-xl shadow-md">
+            <button id="transactions-tab" class="tab-button active flex-1 py-3 px-4 text-sm font-medium border-b-2 border-transparent hover:border-indigo-300 transition duration-150 rounded-lg">
+                <i class="fas fa-list-alt mr-2"></i> Transactions
+            </button>
+            <button id="verification-tab" class="tab-button flex-1 py-3 px-4 text-sm font-medium border-b-2 border-transparent hover:border-indigo-300 transition duration-150 rounded-lg">
+                <i class="fas fa-check-circle mr-2"></i> Gate Verification
+            </button>
+        </div>
+
+        <!-- Notification/Message Area -->
+        <div id="message" class="hidden mb-6 p-3 rounded-lg font-medium text-center"></div>
+
+        <!-- 1. Transactions Tab Content -->
+        <div id="transactions-content" class="tab-content">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Payment Transactions Overview</h2>
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <div class="table-responsive">
+                    <table id="transactionsTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket Type</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account Ref</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tickets</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="transactionsBody">
+                            <!-- Data will be inserted here by JavaScript -->
+                            <tr><td colspan="8" class="text-center py-4 text-gray-500">Loading transactions...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Gate Verification Tab Content -->
+        <div id="verification-content" class="tab-content hidden">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Gate Ticket Verification</h2>
+            <div class="bg-white p-6 rounded-xl shadow-md max-w-lg mx-auto">
+                <form id="verifyTicketForm">
+                    <label for="ticketCode" class="block text-sm font-medium text-gray-700 mb-2">Enter Ticket Code (e.g., TKT-A1B2C3D4):</label>
+                    <input type="text" id="ticketCode" name="ticketCode" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 transition duration-150 ease-in-out uppercase mb-4" placeholder="TKT-XXXXXX">
+                    <button type="submit" class="w-full py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-200 ease-in-out disabled:opacity-50" id="verifyButton">
+                        Verify & Mark Used
+                    </button>
+                </form>
+                <div id="verificationResult" class="mt-6 p-4 rounded-lg font-bold text-center border-2 hidden">
+                    <!-- Verification result will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Awesome for Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
+
+    <script>
+        const API_URL_TRANSACTIONS = '/api/admin/transactions';
+        const API_URL_SEND_EMAIL = '/send-email'; // Keep using POST for server-side action
+        const API_URL_VERIFY = '/verify-ticket'; // Keep using POST for server-side action
+
+        const tabs = document.querySelectorAll('.tab-button');
+        const contents = document.querySelectorAll('.tab-content');
+        const transactionsBody = document.getElementById('transactionsBody');
+        const messageDiv = document.getElementById('message');
+        const verifyTicketForm = document.getElementById('verifyTicketForm');
+        const verificationResultDiv = document.getElementById('verificationResult');
+
+        // --- Utility Functions ---
+
+        function showMessage(text, type = 'success') {
+            let classes = '';
+            if (type === 'success') classes = 'bg-green-100 text-green-700';
+            if (type === 'error') classes = 'bg-red-100 text-red-700';
+            if (type === 'info') classes = 'bg-blue-100 text-blue-700';
+
+            messageDiv.className = `mb-6 p-3 rounded-lg font-medium text-center ${classes}`;
+            messageDiv.innerText = text;
+            messageDiv.classList.remove('hidden');
+        }
+
+        function switchTab(targetId) {
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.classList.add('hidden'));
+
+            const activeTab = document.getElementById(targetId + '-tab');
+            const activeContent = document.getElementById(targetId + '-content');
+
+            if (activeTab) activeTab.classList.add('active');
+            if (activeContent) activeContent.classList.remove('hidden');
+        }
+
+        // --- Data Fetching and Rendering ---
+
+        async function fetchTransactions() {
+            try {
+                const response = await fetch(API_URL_TRANSACTIONS);
+                const data = await response.json();
+
+                if (response.ok) {
+                    renderTransactions(data.transactions || [], data.tickets || []);
+                } else {
+                    throw new Error(data.error || 'Failed to fetch data from server.');
+                }
+            } catch (error) {
+                console.error("Error fetching transactions:", error);
+                transactionsBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-red-500">Error loading data: ${error.message}</td></tr>`;
+                showMessage("Could not connect to the database. Check server logs.", 'error');
+            }
+        }
+
+        function renderTransactions(transactions, allTickets) {
+            if (!transactions.length) {
+                transactionsBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-gray-500">No transactions recorded yet.</td></tr>`;
+                return;
+            }
+
+            // Sort by transaction date/receipt ID to keep new ones on top
+            transactions.sort((a, b) => (b.mpesaReceipt || '').localeCompare(a.mpesaReceipt || ''));
+
+            transactionsBody.innerHTML = transactions.map(trans => {
+                const isSuccess = trans.resultCode === 0;
+                const statusClass = isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                const statusText = isSuccess ? 'Success' : 'Failed';
+                const hasEmail = !!trans.email;
+
+                // Find linked tickets
+                const linkedTickets = allTickets.filter(t => t.mpesaReceipt === trans.mpesaReceipt);
+                const ticketInfo = linkedTickets.map(t => {
+                    const used = t.used ? 'Used' : 'Unused';
+                    const usedClass = t.used ? 'text-red-500' : 'text-green-500';
+                    return `<span class="${usedClass}">${t.ticketCode} (${used})</span>`;
+                }).join('<br>');
+
+                let actionButton = 'N/A';
+                if (isSuccess && hasEmail) {
+                    // Button to send email (tied to the sendEmail function below)
+                    actionButton = `<button data-receipt="${trans.mpesaReceipt}" class="send-email-btn py-1 px-3 bg-indigo-500 text-white text-xs font-medium rounded hover:bg-indigo-600 transition duration-150">Send Ticket Email</button>`;
+                } else if (!hasEmail) {
+                    actionButton = 'No Email';
+                }
+
+                return `
+                    <tr class="hover:bg-gray-50 transition duration-150">
+                        <td class="px-3 py-3 text-sm text-gray-900 font-medium">${trans.mpesaReceipt || 'PENDING'}</td>
+                        <td class="px-3 py-3 text-sm">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">${statusText}</span>
+                        </td>
+                        <td class="px-3 py-3 text-sm text-gray-700">KES ${trans.amount || '0'}</td>
+                        <td class="px-3 py-3 text-sm text-gray-700">${trans.ticketType || 'N/A'}</td>
+                        <td class="px-3 py-3 text-sm text-blue-600 font-medium">${trans.accountReference || 'N/A'}</td> <!-- NEW COLUMN -->
+                        <td class="px-3 py-3 text-sm text-gray-700">${trans.email || 'N/A'}</td>
+                        <td class="px-3 py-3 text-xs text-gray-600">${ticketInfo || 'None Generated'}</td>
+                        <td class="px-3 py-3 text-sm">
+                            ${actionButton}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Re-attach event listeners after rendering
+            document.querySelectorAll('.send-email-btn').forEach(btn => {
+                btn.addEventListener('click', handleSendEmail);
+            });
+        }
+
+        // --- Event Handlers (Email & Verification) ---
+
+        async function handleSendEmail(event) {
+            const button = event.target;
+            const mpesaReceipt = button.getAttribute('data-receipt');
+            
+            button.disabled = true;
+            button.innerText = 'Sending...';
+
+            try {
+                const response = await fetch(API_URL_SEND_EMAIL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mpesaReceipt })
+                });
+
+                const result = await response.text();
+                
+                if (response.ok) {
+                    showMessage(`Email sent successfully for receipt ${mpesaReceipt}!`, 'success');
+                    button.innerText = 'Sent!';
+                    button.classList.remove('bg-indigo-500', 'hover:bg-indigo-600');
+                    button.classList.add('bg-gray-400');
+                } else {
+                    showMessage(`Failed to send email: ${result}`, 'error');
+                    button.innerText = 'Error';
+                }
+            } catch (error) {
+                showMessage('Network error during email attempt.', 'error');
+                button.innerText = 'Retry';
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function handleVerifyTicket(event) {
+            event.preventDefault();
+            const ticketCode = document.getElementById('ticketCode').value.trim().toUpperCase();
+            const verifyButton = document.getElementById('verifyButton');
+
+            if (!ticketCode) return;
+
+            verifyButton.disabled = true;
+            verifyButton.innerText = 'Checking...';
+            verificationResultDiv.classList.add('hidden');
+
+            try {
+                const response = await fetch(API_URL_VERIFY, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticketCode })
+                });
+                
+                const result = await response.text();
+
+                if (response.ok) {
+                    verificationResultDiv.className = 'mt-6 p-4 rounded-lg font-bold text-center border-2 border-green-500 bg-green-50 text-green-700';
+                    verificationResultDiv.innerText = result;
+                    // Refresh transactions data to update ticket used status visually
+                    fetchTransactions(); 
+                } else {
+                    verificationResultDiv.className = 'mt-6 p-4 rounded-lg font-bold text-center border-2 border-red-500 bg-red-50 text-red-700';
+                    verificationResultDiv.innerText = result;
+                }
+            } catch (error) {
+                verificationResultDiv.className = 'mt-6 p-4 rounded-lg font-bold text-center border-2 border-red-500 bg-red-50 text-red-700';
+                verificationResultDiv.innerText = 'Network error or server connection failed.';
+            } finally {
+                verificationResultDiv.classList.remove('hidden');
+                verifyButton.disabled = false;
+                verifyButton.innerText = 'Verify & Mark Used';
+            }
+        }
+
+        // --- Initialization ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchTransactions();
+            verifyTicketForm.addEventListener('submit', handleVerifyTicket);
+
+            // Tab logic setup
+            document.getElementById('transactions-tab').addEventListener('click', () => switchTab('transactions'));
+            document.getElementById('verification-tab').addEventListener('click', () => switchTab('verification'));
+        });
+    </script>
+</body>
+</html>
