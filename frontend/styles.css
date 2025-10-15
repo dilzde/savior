@@ -142,28 +142,70 @@ body {
 
 /* --- RESPONSIVE ADJUSTMENTS --- */
 @media (max-width: 768px) {
-    .navbar {
-        flex-direction: column;
-        text-align: center;
-    }
-    .nav-links {
-        margin-top: 15px;
-        justify-content: center;
-    }
-    .nav-links li {
-        margin: 0 10px;
-    }
-    .main-heading {
-        font-size: 40px;
-    }
-    .stats-container {
-        flex-direction: column;
-        gap: 20px;
-    }
-    .stat-number {
-        font-size: 36px;
-    }
-}
+            .container {
+                padding: 10px 15px;
+            }
+
+            /* --- NAVBAR: Stacked and Centered --- */
+            .navbar {
+                flex-direction: column;
+                padding-bottom: 25px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            }
+
+            .logo-group {
+                text-align: center;
+                width: 100%;
+            }
+            
+            .logo-group h1 {
+                font-size: 24px;
+            }
+
+            .nav-links {
+                margin-top: 15px;
+                justify-content: center;
+                gap: 15px;
+            }
+
+            /* --- HERO CONTENT: Smaller, more readable text --- */
+            .hero-section {
+                padding: 40px 0 20px; /* Less bottom padding to bring CTA closer */
+            }
+
+            .main-heading {
+                font-size: 38px;
+                margin: 20px 0 15px;
+            }
+
+            .sub-description {
+                font-size: 16px;
+                margin-bottom: 30px; /* Spacing above the button */
+                padding: 0 10px; /* Slight horizontal padding for text on very small screens */
+            }
+
+            /* --- CALL TO ACTION BUTTON (Mobile optimization) --- */
+            .cta-button-container {
+                margin-bottom: 40px; /* Space below the button before stats */
+            }
+
+            .cta-button {
+                width: 90%; /* Make the button nearly full width */
+                font-size: 18px; /* Slightly smaller text for better fit */
+                padding: 18px 0; /* Increased vertical padding for easy tapping */
+            }
+
+            /* --- STATS: Stacked Vertically with Even Spacing --- */
+            .stats-container {
+                flex-direction: column;
+                gap: 30px; 
+                padding: 20px 0;
+            }
+            
+            .stat-number {
+                font-size: 44px;
+            }
+        }
 
 /* --- EVENTS HIGHLIGHT SECTION (REVISED) --- */
 .events-section {
